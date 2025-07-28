@@ -1,0 +1,180 @@
+﻿@page "/Productos/Create"
+@using Blazored.Toast.Services
+@using AutoPartsFinal.Components.Models;
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@inject ProductoService ProductosService
+@inject NavigationManager navigationmanager
+@inject IToastService itoastservice
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
+@rendermode InteractiveServer
+
+<PageTitle>Crear Producto</PageTitle>
+
+<EditForm Model="productos" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+
+    <div class="container mt-4">
+        <h3 class="fw-semibold text-center">Crear Nuevo Producto</h3>
+
+        <div class="row mt-4">
+            <div class="col-md-7">
+                <div class="card shadow-lg">
+                    <div class="card-header position-relative text-center">
+                        <h5 class="card-title">Detalles del Producto</h5>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Producto Id</strong></label>
+                            <InputNumber class="form-control" @bind-Value="productos.ProductoId" readonly></InputNumber>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Nombre del Producto</strong></label>
+                            <InputText class="form-control" @bind-Value="productos.ProductoNombre" placeholder="Ingrese el nombre"></InputText>
+                            <ValidationMessage For="(() => productos.ProductoNombre)"></ValidationMessage>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Descripción del Producto</strong></label>
+                            <InputTextArea class="form-control" @bind-Value="productos.ProductoDescripcion" placeholder="Ingrese la descripción"></InputTextArea>
+                            <ValidationMessage For="(() => productos.ProductoDescripcion)"></ValidationMessage>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Monto (Precio)</strong></label>
+                            <InputNumber class="form-control" step="0.01" @bind-Value="productos.ProductoMonto"></InputNumber>
+                            <ValidationMessage For="(() => productos.ProductoMonto)"></ValidationMessage>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Cantidad (Stock)</strong></label>
+                            <InputNumber class="form-control" @bind-Value="productos.ProductoCantidad"></InputNumber>
+                            <ValidationMessage For="(() => productos.ProductoCantidad)"></ValidationMessage>
+                        </div>
+                    </div>
+
+                    <div class="card-footer text-center">
+                        <span class="btn-group" role="group">
+                            <button type="reset" class="btn btn-outline-primary bi bi-arrow-clockwise" @onclick="Nuevo"> Limpiar</button>
+                            <button type="submit" class="btn btn-outline-success bi bi-floppy"> Guardar</button>
+                            <a href="/Productos/Index" class="btn btn-outline-secondary bi bi-box-arrow-left"> Volver</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5 d-flex justify-content-center align-items-start mt-3 mt-md-0">
+                <div class="card shadow-sm p-4 text-center" style="height: 100%; min-height: 400px; width: 100%;">
+                    <p class="text-muted mb-2">Imagen del Producto</p>
+                    @if (!string.IsNullOrEmpty(productos.ProductoImagenUrl))
+                    {
+                        <img src="@productos.ProductoImagenUrl" class="img-fluid mb-3" alt="Imagen del producto" style="max-height: 250px; object-fit: contain; width: 100%;" />
+                    }
+                    else
+                    {
+                        <i class="bi bi-image fs-1 text-muted d-block mx-auto mb-3" style="font-size: 100px !important;"></i>
+                    }
+                    <p class="text-muted">Subir Imagen</p>
+                    <InputFile OnChange="SubirImagen" accept=".jpg,.jpeg,.png,.gif" />
+                </div>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private Productos productos { get; set; } = new Productos();
+    private IBrowserFile? selectedImageFile;
+
+    public void Nuevo()
+    {
+        this.productos = new Productos();
+        this.selectedImageFile = null;
+    }
+
+    private async Task SubirImagen(InputFileChangeEventArgs e)
+    {
+        selectedImageFile = e.File;
+
+        if (selectedImageFile != null)
+        {
+            if (selectedImageFile.Size > 5 * 1024 * 1024)
+            {
+                itoastservice.ShowError("La imagen no debe exceder los 5MB.");
+                selectedImageFile = null;
+                productos.ProductoImagenUrl = null;
+                return;
+            }
+            try
+            {
+                var buffer = new byte[selectedImageFile.Size];
+                await selectedImageFile.OpenReadStream().ReadAsync(buffer);
+                productos.ProductoImagenUrl = $"data:{selectedImageFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
+            }
+            catch (Exception ex)
+            {
+                itoastservice.ShowError($"Error al previsualizar la imagen: {ex.Message}");
+                selectedImageFile = null;
+                productos.ProductoImagenUrl = null;
+            }
+        }
+        else
+        {
+            productos.ProductoImagenUrl = null;
+        }
+    }
+
+    public async Task Guardar()
+    {
+        if (productos == null)
+        {
+            itoastservice.ShowError("Error interno: El objeto producto es nulo.");
+            return;
+        }
+
+        if (selectedImageFile != null)
+        {
+            try
+            {
+                var uniqueFileName = $"{Guid.NewGuid()}_{selectedImageFile.Name}";
+                var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, "images", "productos");
+                Directory.CreateDirectory(folderPath);
+                var filePath = Path.Combine(folderPath, uniqueFileName);
+
+                using (var stream = File.Create(filePath))
+                {
+                    await selectedImageFile.OpenReadStream().CopyToAsync(stream);
+                }
+
+                productos.ProductoImagenUrl = $"/images/productos/{uniqueFileName}";
+                itoastservice.ShowSuccess("Imagen subida con éxito.");
+                selectedImageFile = null;
+            }
+            catch (Exception ex)
+            {
+                itoastservice.ShowError($"Error al subir la imagen: {ex.Message}");
+                return;
+            }
+        }
+        else
+        {
+            productos.ProductoImagenUrl = null;
+        }
+
+        var guardo = await ProductosService.Guardar(this.productos);
+
+        if (guardo != null)
+        {
+            itoastservice.ShowSuccess("Producto guardado correctamente");
+            navigationmanager.NavigateTo("/Productos/Index");
+            Nuevo();
+        }
+        else
+        {
+            itoastservice.ShowError("Error al almacenar el Producto");
+        }
+    }
+}
