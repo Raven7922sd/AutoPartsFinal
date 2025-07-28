@@ -19,7 +19,6 @@
 
         <div class="row mt-4">
             <div class="col-md-7">
-                @* Columna izquierda para los campos del formulario *@
                 <div class="card shadow-lg">
                     <div class="card-header position-relative text-center">
                         <h5 class="card-title">Detalles del Producto</h5>
@@ -29,7 +28,6 @@
 
                         <div class="mb-3">
                             <label class="form-label"><strong>Producto Id</strong></label>
-                            @* El ID se generará automáticamente en la base de datos, aquí solo se muestra un valor predeterminado o se deja en blanco *@
                             <InputNumber class="form-control" @bind-Value="productos.ProductoId" readonly></InputNumber>
                         </div>
 
@@ -81,7 +79,6 @@
                     }
                     <p class="text-muted">Subir Imagen</p>
                     <InputFile OnChange="SubirImagen" accept=".jpg,.jpeg,.png,.gif" />
-                    @* No hay ValidationMessage para ProductoImagenUrl aquí a menos que tengas una validación específica en tu modelo para ello *@
                 </div>
             </div>
         </div>
@@ -90,138 +87,94 @@
 
 @code {
     private Productos productos { get; set; } = new Productos();
-    private IBrowserFile? selectedImageFile; // Propiedad para el archivo seleccionado
+    private IBrowserFile? selectedImageFile;
 
     public void Nuevo()
     {
         this.productos = new Productos();
-        this.selectedImageFile = null; // Limpiar el archivo seleccionado también
-        Console.WriteLine("DEBUG: Formulario limpiado. selectedImageFile es null.");
+        this.selectedImageFile = null;
     }
 
-    // Método para manejar la selección del archivo de imagen
     private async Task SubirImagen(InputFileChangeEventArgs e)
     {
-        Console.WriteLine("DEBUG: SubirImagen iniciado.");
         selectedImageFile = e.File;
 
         if (selectedImageFile != null)
         {
-            Console.WriteLine($"DEBUG: Archivo seleccionado: {selectedImageFile.Name}, Tipo: {selectedImageFile.ContentType}, Tamaño: {selectedImageFile.Size} bytes.");
-
-            // Opcional: Validar el tamaño del archivo
-            if (selectedImageFile.Size > 5 * 1024 * 1024) // Limite de 5 MB
+            if (selectedImageFile.Size > 5 * 1024 * 1024)
             {
                 itoastservice.ShowError("La imagen no debe exceder los 5MB.");
-                selectedImageFile = null; // Reiniciar para evitar que se intente subir
-                productos.ProductoImagenUrl = null; // Limpiar previsualización
-                Console.WriteLine("DEBUG: Imagen excede el tamaño. selectedImageFile es null.");
+                selectedImageFile = null;
+                productos.ProductoImagenUrl = null;
                 return;
             }
-
-            // Generar una URL temporal para previsualización (Data URL)
-            // Esto es solo para que la imagen se vea en el navegador ANTES de guardar en el servidor.
             try
             {
                 var buffer = new byte[selectedImageFile.Size];
                 await selectedImageFile.OpenReadStream().ReadAsync(buffer);
                 productos.ProductoImagenUrl = $"data:{selectedImageFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
-                Console.WriteLine("DEBUG: Previsualización de imagen generada.");
             }
             catch (Exception ex)
             {
                 itoastservice.ShowError($"Error al previsualizar la imagen: {ex.Message}");
                 selectedImageFile = null;
-                productos.ProductoImagenUrl = null; // Limpiar previsualización
-                Console.WriteLine($"DEBUG: Error al previsualizar: {ex.Message}. selectedImageFile es null.");
+                productos.ProductoImagenUrl = null;
             }
         }
         else
         {
-            productos.ProductoImagenUrl = null; // Si no se selecciona archivo, limpiar previsualización
-            Console.WriteLine("DEBUG: No se seleccionó ningún archivo. selectedImageFile es null.");
+            productos.ProductoImagenUrl = null;
         }
     }
 
     public async Task Guardar()
     {
-        Console.WriteLine("DEBUG: Guardar iniciado.");
-
-        // Comprobación defensiva: Aunque productos se inicializa, es bueno tener una capa extra.
         if (productos == null)
         {
             itoastservice.ShowError("Error interno: El objeto producto es nulo.");
-            Console.WriteLine("ERROR: El objeto 'productos' es nulo al intentar guardar.");
             return;
         }
 
-        // 1. Manejar la subida de la imagen REAL al servidor si se ha seleccionado un archivo
         if (selectedImageFile != null)
         {
-            Console.WriteLine($"DEBUG: selectedImageFile NO es null. Intentando subir imagen: {selectedImageFile.Name}");
             try
             {
-                // Generar un nombre único para el archivo
                 var uniqueFileName = $"{Guid.NewGuid()}_{selectedImageFile.Name}";
-                Console.WriteLine($"DEBUG: Nombre único de archivo: {uniqueFileName}");
-
-                // Construir la ruta completa donde se guardará la imagen en wwwroot/images/productos/
-                // Asegúrate de que la carpeta wwwroot/images/productos exista en tu proyecto
                 var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, "images", "productos");
-                Directory.CreateDirectory(folderPath); // Asegura que el directorio exista
-                Console.WriteLine($"DEBUG: Ruta de la carpeta de imágenes: {folderPath}");
-
+                Directory.CreateDirectory(folderPath);
                 var filePath = Path.Combine(folderPath, uniqueFileName);
-                Console.WriteLine($"DEBUG: Ruta completa del archivo: {filePath}");
 
-                // Guardar el archivo físicamente en el servidor
                 using (var stream = File.Create(filePath))
                 {
                     await selectedImageFile.OpenReadStream().CopyToAsync(stream);
                 }
 
-                // Asignar la URL relativa para que se guarde en la base de datos
-                // y sea accesible desde el navegador
                 productos.ProductoImagenUrl = $"/images/productos/{uniqueFileName}";
                 itoastservice.ShowSuccess("Imagen subida con éxito.");
-                Console.WriteLine($"DEBUG: Imagen guardada en servidor. URL asignada: {productos.ProductoImagenUrl}");
-                selectedImageFile = null; // Limpiar el archivo seleccionado después de subirlo
+                selectedImageFile = null;
             }
             catch (Exception ex)
             {
                 itoastservice.ShowError($"Error al subir la imagen: {ex.Message}");
-                Console.WriteLine($"ERROR: Fallo al subir la imagen: {ex.Message}");
-                // Si la subida de la imagen falla, podrías decidir no guardar el producto
-                // o guardar el producto sin imagen, dependiendo de tu lógica de negocio.
-                // Aquí, he optado por detener el guardado del producto si la imagen falla.
                 return;
             }
         }
         else
         {
-            // Si no se seleccionó ninguna imagen nueva, asegúrate de que ProductoImagenUrl sea null
-            // para un nuevo producto (o la lógica que desees si la imagen es opcional).
-            // Si el campo ProductoImagenUrl es requerido en tu modelo, esto podría causar un error de validación.
             productos.ProductoImagenUrl = null;
-            Console.WriteLine("DEBUG: No se seleccionó ninguna imagen nueva. ProductoImagenUrl establecido a null.");
         }
 
-
-        // 2. Guardar el producto (con la nueva URL de la imagen o sin ella si no se subió ninguna)
-        Console.WriteLine($"DEBUG: Intentando guardar producto. Nombre: {productos.ProductoNombre}, ImagenUrl: {productos.ProductoImagenUrl}");
-        var guardo = await ProductosService.Guardar(this.productos); // Tu servicio de guardar
+        var guardo = await ProductosService.Guardar(this.productos);
 
         if (guardo != null)
         {
             itoastservice.ShowSuccess("Producto guardado correctamente");
             navigationmanager.NavigateTo("/Productos/Index");
-            Nuevo(); // Limpiar el formulario para un nuevo producto
-            Console.WriteLine("DEBUG: Producto guardado y redirigido.");
+            Nuevo();
         }
         else
         {
             itoastservice.ShowError("Error al almacenar el Producto");
-            Console.WriteLine("ERROR: Fallo al guardar el producto a través del servicio.");
         }
     }
 }
