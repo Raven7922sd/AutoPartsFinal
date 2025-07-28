@@ -98,5 +98,4 @@ public class ProductoService(IDbContextFactory<ApplicationDbContext>DbFactory)
 
         return await query.OrderBy(f => f.Fecha).ToListAsync();
     }
-
 }
