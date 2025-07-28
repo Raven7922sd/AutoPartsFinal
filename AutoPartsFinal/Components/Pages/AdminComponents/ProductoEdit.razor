@@ -1,0 +1,296 @@
+﻿@page "/Productos/Edit/{ProductoId:int}"
+@using Blazored.Toast.Services
+@using AutoPartsFinal.Components.Models;
+@inject ProductoService ProductosService
+@inject NavigationManager navigationmanager
+@inject IToastService itoastservice
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
+@rendermode InteractiveServer
+
+<PageTitle>Editar Producto</PageTitle>
+
+@if (isLoading) // Puedes usar una variable isLoading como en el otro componente
+{
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+}
+else
+{
+        <EditForm Model="productos" OnValidSubmit="Guardar">
+            <DataAnnotationsValidator />
+
+            <div class="container mt-4">
+                <h3 class="fw-semibold text-center">Editar Producto</h3> @* Título similar al otro componente *@
+
+                <div class="row mt-4">
+                    <div class="col-md-7"> @* Columna izquierda para los campos del formulario *@
+                        <div class="card shadow-lg">
+                            <div class="card-header position-relative text-center">
+                                <h5 class="card-title">Detalles del Producto</h5> @* Título más general para edición *@
+                            </div>
+
+                            <div class="card-body">
+
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Producto Id</strong></label>
+                                    <InputNumber class="form-control" @bind-Value="productos.ProductoId" readonly></InputNumber>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Nombre del Producto</strong></label>
+                                    <InputText class="form-control" @bind-Value="productos.ProductoNombre" placeholder="Ingrese el nombre"></InputText>
+                                    <ValidationMessage For="(() => productos.ProductoNombre)"></ValidationMessage>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Descripción del Producto</strong></label>
+                                    <InputTextArea class="form-control" @bind-Value="productos.ProductoDescripcion" placeholder="Ingrese la descripción"></InputTextArea> @* InputTextArea para descripciones largas *@
+                                    <ValidationMessage For="(() => productos.ProductoDescripcion)"></ValidationMessage>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Monto (Precio)</strong></label> @* Renombrado para claridad *@
+                                    <InputNumber class="form-control" step="0.01" @bind-Value="productos.ProductoMonto"></InputNumber>
+                                    <ValidationMessage For="(() => productos.ProductoMonto)"></ValidationMessage>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Cantidad (Stock)</strong></label> @* Renombrado para claridad *@
+                                    <InputNumber class="form-control" @bind-Value="productos.ProductoCantidad"></InputNumber>
+                                    <ValidationMessage For="(() => productos.ProductoCantidad)"></ValidationMessage>
+                                </div>
+                            </div>
+
+                            <div class="card-footer text-center">
+                                <span class="btn-group" role="group">
+                                    <a type="button" class="btn btn-outline-danger" @onclick="() => MostrarModal = true"><span class="bi bi-trash"></span> Eliminar</a>
+                                    <button type="submit" class="btn btn-outline-success bi bi-floppy"> Guardar</button>
+                                    <a href="/Productos/Index" class="btn btn-outline-secondary bi bi-box-arrow-left"> Volver</a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5 d-flex justify-content-center align-items-start mt-3 mt-md-0">
+                        <div class="card shadow-sm p-4 text-center" style="height: 100%; min-height: 400px; width: 100%;"> @* Ajustado width: 100% *@
+                            <p class="text-muted mb-2">Imagen del Producto</p>
+                        @if (!string.IsNullOrEmpty(productos.ProductoImagenUrl))
+                        {
+                                    <img src="@productos.ProductoImagenUrl" class="img-fluid mb-3" alt="Imagen del producto" style="max-height: 250px; object-fit: contain; width: 100%;" /> @* Ajustado max-height y width *@
+                        }
+                        else
+                        {
+                                    <i class="bi bi-image fs-1 text-muted d-block mx-auto mb-3" style="font-size: 100px !important;"></i> @* Icono más grande y centrado *@
+                        }
+                            <p class="text-muted">Subir o cambiar Imagen</p>
+                            <InputFile OnChange="SubirImagen" accept=".jpg,.jpeg,.png,.gif" />
+                            <ValidationMessage For="(() => productos.ProductoImagenUrl)"></ValidationMessage> @* Mensaje de validación para la imagen *@
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+}
+
+@if (MostrarModal)
+{
+        <div class="modal fade show d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content shadow">
+
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title w-100 text-center">Eliminar Producto</h5>
+                        <button type="button" class="btn-close" @onclick="CerrarModal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <div class="modal-body text-danger">
+                        <p><strong>¿Está seguro de eliminar este Producto?</strong></p>
+
+                        <h5 class="text-center text-dark"><strong>Datos del Producto</strong></h5>
+                    </div>
+
+                    <div class="mb-3 ms-3">
+                        <p><strong>Id: </strong>@productos.ProductoId</p>
+                        <p><strong>Nombre: </strong>@productos.ProductoNombre</p>
+                        <p><strong>Descripción: </strong>@productos.ProductoDescripcion</p> @* Corregido el nombre del campo *@
+                        <p><strong>Monto: </strong>@productos.ProductoMonto.ToString("N2")</p>
+                    </div>
+
+                    <div class="modal-footer justify-content-center">
+                        <span class="btn-group" role="group">
+                            <button class="btn btn-outline-danger bi bi-trash" @onclick="Eliminar"> Eliminar</button>
+                            <button class="btn btn-outline-secondary bi bi-box-arrow-left" @onclick="CerrarModal"> Volver</button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+}
+
+@code {
+    [Parameter]
+    public int ProductoId { get; set; }
+
+    public Productos? productos { get; set; } = new Productos();
+    private bool MostrarModal = false;
+    private bool isLoading = true; // Para el spinner de carga
+
+    // Propiedad para el archivo seleccionado, similar al ejemplo de StockManager
+    private IBrowserFile? selectedImageFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true; // Iniciar carga
+
+        if (ProductoId > 0)
+        {
+            productos = await ProductosService.Buscar(ProductoId); // Tu método Buscar
+            if (productos == null)
+            {
+                itoastservice.ShowError("Producto no encontrado.");
+                navigationmanager.NavigateTo("/Productos/Index");
+                return;
+            }
+        }
+        else
+        {
+            // Si el ProductoId es 0 o inválido, podrías redirigir o mostrar un mensaje
+            itoastservice.ShowError("ID de producto inválido.");
+            navigationmanager.NavigateTo("/Productos/Index");
+            return;
+        }
+
+        isLoading = false; // Finalizar carga
+    }
+
+    private void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+
+    // Método para manejar la selección del archivo de imagen
+    private async Task SubirImagen(InputFileChangeEventArgs e)
+    {
+        selectedImageFile = e.File;
+
+        if (selectedImageFile != null)
+        {
+            // Opcional: Validar el tamaño del archivo, como en el ejemplo de StockManager
+            if (selectedImageFile.Size > 5 * 1024 * 1024) // Limite de 5 MB
+            {
+                itoastservice.ShowError("La imagen no debe exceder los 5MB.");
+                selectedImageFile = null; // Reiniciar para evitar que se intente subir
+                return;
+            }
+
+            // Generar una URL temporal para previsualización (Data URL)
+            // Esto es solo para que la imagen se vea en el navegador ANTES de guardar en el servidor.
+            try
+            {
+                var buffer = new byte[selectedImageFile.Size];
+                await selectedImageFile.OpenReadStream().ReadAsync(buffer);
+                productos.ProductoImagenUrl = $"data:{selectedImageFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
+            }
+            catch (Exception ex)
+            {
+                itoastservice.ShowError($"Error al previsualizar la imagen: {ex.Message}");
+                selectedImageFile = null;
+            }
+        }
+    }
+
+
+    private async Task Guardar()
+    {
+        // 1. Manejar la subida de la imagen REAL al servidor si se ha seleccionado un nuevo archivo
+        if (selectedImageFile != null)
+        {
+            try
+            {
+                // Generar un nombre único para el archivo
+                var uniqueFileName = $"{Guid.NewGuid()}_{selectedImageFile.Name}";
+
+                // Construir la ruta completa donde se guardará la imagen en wwwroot/images/productos/
+                // Asegúrate de que la carpeta wwwroot/images/productos exista
+                var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, "images", "productos");
+                Directory.CreateDirectory(folderPath); // Asegura que el directorio exista
+
+                var filePath = Path.Combine(folderPath, uniqueFileName);
+
+                // Guardar el archivo físicamente en el servidor
+                using (var stream = File.Create(filePath))
+                {
+                    await selectedImageFile.OpenReadStream().CopyToAsync(stream);
+                }
+
+                // Asignar la URL relativa para que se guarde en la base de datos
+                // y sea accesible desde el navegador
+                productos.ProductoImagenUrl = $"/images/productos/{uniqueFileName}";
+                itoastservice.ShowSuccess("Imagen subida con éxito.");
+                selectedImageFile = null; // Limpiar el archivo seleccionado después de subirlo
+            }
+            catch (Exception ex)
+            {
+                itoastservice.ShowError($"Error al subir la imagen: {ex.Message}");
+                // Puedes elegir si quieres detener el proceso de guardado del producto aquí
+                // si la imagen es obligatoria o si quieres continuar sin la imagen.
+                return; // Detener el guardado si falla la subida de imagen
+            }
+        }
+        // else: Si selectedImageFile es null, significa que no se seleccionó una nueva imagen,
+        // por lo que se mantiene la ProductoImagenUrl existente del modelo.
+
+
+        // 2. Guardar el producto (con la nueva URL de la imagen o la existente)
+        var guardo = await ProductosService.Guardar(this.productos); // Tu servicio de guardar
+
+        if (guardo != null)
+        {
+            itoastservice.ShowSuccess("Producto modificado correctamente");
+            navigationmanager.NavigateTo("/Productos/Index");
+        }
+        else
+        {
+            itoastservice.ShowError("Error al modificar el Producto");
+        }
+    }
+
+    private async Task Eliminar()
+    {
+        if (productos != null)
+        {
+            // Opcional: Eliminar la imagen del servidor si existe
+            if (!string.IsNullOrEmpty(productos.ProductoImagenUrl) && !productos.ProductoImagenUrl.StartsWith("data:"))
+            {
+                var filePath = Path.Combine(WebHostEnvironment.WebRootPath, productos.ProductoImagenUrl.TrimStart('/'));
+                if (File.Exists(filePath))
+                {
+                    try
+                    {
+                        File.Delete(filePath);
+                        itoastservice.ShowInfo("Imagen asociada eliminada del servidor.");
+                    }
+                    catch (Exception ex)
+                    {
+                        itoastservice.ShowWarning($"No se pudo eliminar la imagen del servidor: {ex.Message}");
+                    }
+                }
+            }
+
+            var Eliminado = await ProductosService.Eliminar(productos.ProductoId);
+            if (Eliminado)
+            {
+                itoastservice.ShowSuccess("Producto eliminado correctamente");
+                navigationmanager.NavigateTo("/Productos/Index");
+            }
+            else
+            {
+                itoastservice.ShowError("Error al eliminar el Producto");
+            }
+            MostrarModal = false;
+        }
+    }
+}

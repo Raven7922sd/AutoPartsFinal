@@ -8,10 +8,22 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Confirm email</PageTitle>
+<PageTitle>Confirm Email</PageTitle>
 
-<h1>Confirm email</h1>
-<StatusMessage Message="@statusMessage" />
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h1 class="text-center mb-4">Confirm Email</h1>
+
+                    <StatusMessage Message="@statusMessage" />
+                </div>
+                <a href="/" class="text-center "><span class="btn btn-success">Continuar</span></a>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     private string? statusMessage;
@@ -42,7 +54,9 @@
         {
             var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
             var result = await UserManager.ConfirmEmailAsync(user, code);
-            statusMessage = result.Succeeded ? "Thank you for confirming your email." : "Error confirming your email.";
+            statusMessage = result.Succeeded
+                ? "✅ Thank you for confirming your email."
+                : "❌ Error confirming your email.";
         }
     }
 }
